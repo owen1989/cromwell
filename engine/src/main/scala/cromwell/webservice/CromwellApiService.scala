@@ -69,7 +69,9 @@ trait CromwellApiService {
     },
     path("engine" / Segment / "status") { version =>
       onComplete(serviceRegistryActor.ask(GetCurrentStatus).mapTo[StatusCheckResponse]) {
-        case Success(status) => complete(status.systems)
+        case Success(status) =>
+          val httpCode = if (status.ok) StatusCodes.OK else StatusCodes.InternalServerError
+          complete((httpCode, status.systems))
         case Failure(_) => new RuntimeException("Unable to gather engine status").failRequest(StatusCodes.InternalServerError)
       }
     }

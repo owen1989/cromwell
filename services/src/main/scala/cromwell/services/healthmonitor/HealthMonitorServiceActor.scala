@@ -4,6 +4,7 @@ import java.util.concurrent.TimeoutException
 
 import akka.actor.{Actor, Cancellable}
 import akka.pattern.{after, pipe}
+import cromwell.util.GracefulShutdownHelper.ShutdownCommand
 //import cats._
 //import cats.implicits._
 import com.typesafe.scalalogging.LazyLogging
@@ -37,15 +38,14 @@ trait HealthMonitorServiceActor extends Actor with LazyLogging {
     */
   private var data: Map[Subsystem, CachedSubsystemStatus] = {
     val now = System.currentTimeMillis
-    println("FOO: " + subsystems)
-    val z=  subsystems.map((_, CachedSubsystemStatus(UnknownStatus, now)))
-      z.toMap
+    subsystems.map((_, CachedSubsystemStatus(UnknownStatus, now))).toMap
   }
 
   override def receive: Receive = {
     case CheckAll => subsystems.foreach(checkSubsystem)
     case Store(subsystem, status) => store(subsystem, status)
     case GetCurrentStatus => sender ! getCurrentStatus
+    case ShutdownCommand => context.stop(self) // FIXME: rework service registryto not require all children to be graceful
   }
 
   private def checkSubsystem(subsystem: Subsystem): Unit = {
