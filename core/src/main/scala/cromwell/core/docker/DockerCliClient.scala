@@ -1,4 +1,4 @@
-package cromwell.docker.local
+package cromwell.core.docker
 
 import scala.util.Try
 
@@ -66,7 +66,7 @@ trait DockerCliClient {
     * @param cmd The command to run.
     * @return The results of the run wrapped in a DockerCliResult.
     */
-  private[local] def run(cmd: Seq[String]): DockerCliResult = {
+  private[docker] def run(cmd: Seq[String]): DockerCliResult = {
     import sys.process._
     var stdout = List.empty[String]
     var stderr = List.empty[String]
@@ -79,7 +79,7 @@ trait DockerCliClient {
     * @param hashLine The line output by the stdout of the `lookupHash` command.
     * @return An optional `DockerCliHash`, if the all the columns are found.
     */
-  private[local] def parseHashLine(hashLine: String): Option[DockerCliHash] = {
+  private def parseHashLine(hashLine: String): Option[DockerCliHash] = {
     val none = "<none>"
     val tokens = hashLine.split("\t").lift
     for {

@@ -1,4 +1,4 @@
-package cromwell.docker.local
+package cromwell.core.docker
 
 import org.scalatest.prop.TableDrivenPropertyChecks
 import org.scalatest.{FlatSpecLike, Matchers}
