@@ -24,7 +24,7 @@ trait ReadLikeFunctions extends PathFactory { this: WdlStandardLibraryFunctions 
   private def readContentsFromSingleFileParameter(functionName: String, params: Seq[Try[WdlValue]]): Try[String] = {
     for {
       singleArgument <- extractSingleArgument(functionName, params)
-      string = fileContentsToString(singleArgument.valueString)
+      string = readFile(singleArgument.valueString)
     } yield string
   }
 

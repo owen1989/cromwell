@@ -19,14 +19,17 @@ trait WriteFunctions { this: WdlStandardLibraryFunctions =>
 
   def writeTempFile(path: String,prefix: String,suffix: String,content: String): String = throw new NotImplementedError("This method is not used anywhere and should be removed")
 
-  private def writeContent(baseName: String, content: String): Try[WdlFile] = {
-    val tmpFile = _writeDirectory / s"${baseName}_${content.md5Sum}.tmp"
-
+  override def writeFile(path: String, content: String): Try[WdlFile] = {
+    val file = _writeDirectory / path
     Try {
-      if (tmpFile.notExists) tmpFile.write(content)
+      if (file.notExists) file.write(content)
     } map { _ =>
-      WdlFile(tmpFile.pathAsString)
+      WdlFile(file.pathAsString)
     }
+  }
+
+  private def writeContent(baseName: String, content: String): Try[WdlFile] = {
+    writeFile(s"${baseName}_${content.md5Sum}.tmp", content)
   }
 
   private def writeToTsv[A <: WdlValue with TsvSerializable](functionName: String, params: Seq[Try[WdlValue]], defaultIfOptionalEmpty: A): Try[WdlFile] = {
