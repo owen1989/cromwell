@@ -36,6 +36,10 @@ trait DockerCliClient {
     forRun("docker", "pull", dockerCliKey.fullName) { _ => () }
   }
 
+  def rmi(dockerCliKey: DockerCliKey): Try[Unit] = {
+    forRun("docker", "rmi", dockerCliKey.fullName) { _ => () }
+  }
+
   /**
     * Tries to run the command, then feeds the stdout to `f`. If the exit code is non-zero, returns a `Failure` with
     * a `RuntimeException` containing the stderr.

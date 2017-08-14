@@ -46,5 +46,4 @@ object EngineFilesystems {
     case Success(maybeBuilderFactory) => maybeBuilderFactory.toList.traverse(_.withOptions(workflowOptions)).map(_ ++ defaultFileSystem)
     case Failure(failure) => Future.failed(failure)
   }
-
 }
