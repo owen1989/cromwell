@@ -94,7 +94,7 @@ class JesApiQueryManager(val qps: Int Refined Positive) extends Actor with Actor
   private case class BeheadedWorkQueue(workToDo: Option[NonEmptyList[JesApiQuery]], newWorkQueue: Queue[JesApiQuery])
   private def beheadWorkQueue(maxBatchSize: Int): BeheadedWorkQueue = {
 
-    /**
+    /*
       * Take the head of the queue, making sure it stays under maxBatchSize as well as maxBatchRequestSize.
       * Assumes that each query in the queue can fit in an empty batch (queries with a size > maxBatchSize should no be added to the queue)
       *
