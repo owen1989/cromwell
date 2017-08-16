@@ -32,8 +32,10 @@ class JesApiQueryManager(val qps: Int Refined Positive) extends Actor with Actor
   // Find out what the real value is
   private val maxBatchRequestSize = 14 * 1024 * 1024
   private val requestTooLargeException = new JesApiException(new IllegalArgumentException(
-    "The JES creation request exceeds the maximum size allowed. " +
-      "If you have a task with a very large number of inputs and / or outputs in your workflow you should try to reduce it."
+    "The task run request has exceeded the maximum PAPI request size." +
+      "If you have a task with a very large number of inputs and / or outputs in your workflow you should try to reduce it. " +
+      "Depending on your case you could: 1) Zip your input files together and unzip them in the command. 2) Use a file of file names " +
+      "and localize the files yourself."
   ))
 
   // workQueue is protected for the unit tests, not intended to be generally overridden
@@ -48,9 +50,9 @@ class JesApiQueryManager(val qps: Int Refined Positive) extends Actor with Actor
   resetWorker()
 
   override def receive = {
-    case DoPoll(run) => workQueue :+= makePollQuery(sender(), run)
+    case DoPoll(run) => workQueue :+= makePollQuery(sender, run)
     case DoCreateRun(genomics, rpr) =>
-      val creationQuery = makeCreateQuery(sender(), genomics, rpr)
+      val creationQuery = makeCreateQuery(sender, genomics, rpr)
 
       if (creationQuery.contentLength > maxBatchRequestSize) {
         creationQuery.requester ! JesApiRunCreationQueryFailed(creationQuery, requestTooLargeException)
@@ -103,7 +105,7 @@ class JesApiQueryManager(val qps: Int Refined Positive) extends Actor with Actor
   private def beheadWorkQueue(maxBatchSize: Int): BeheadedWorkQueue = {
 
     /*
-      * Take the head of the queue, making sure it stays under maxBatchSize as well as maxBatchRequestSize.
+      * Keep taking from the head of the queue, making sure it stays under maxBatchSize as well as maxBatchRequestSize.
       * Assumes that each query in the queue can fit in an empty batch (queries with a size > maxBatchSize should no be added to the queue)
       *
       * This is a naive approach where we keep adding queries to the head as long as they don't overflow it, and then we stop.
@@ -116,13 +118,14 @@ class JesApiQueryManager(val qps: Int Refined Positive) extends Actor with Actor
       */
     @tailrec
     def behead(queue: Queue[JesApiQuery], head: Vector[JesApiQuery]): Vector[JesApiQuery]  = queue.headOption match {
-      // TODO: don't recompute the length sum every time ?
       case Some(query) if head.size < maxBatchSize && head.map(_.contentLength).sum + query.contentLength < maxBatchRequestSize =>
         behead(queue.tail, head :+ query)
       case _ => head
     }
 
-    val head = behead(workQueue, Vector.empty).toList
+    // Initialize the head with workQueue.head to avoid deadlocking if the first element is > maxBatchRequestSize, 
+    // which should NOT happen as they should not be inserted in the queue in the first place
+    val head = if (workQueue.isEmpty) Vector.empty else behead(workQueue.tail, workQueue.headOption.toVector).toList
     val tail = workQueue.drop(head.size)
 
     head match {
@@ -195,14 +198,12 @@ object JesApiQueryManager {
     def backoff: Backoff = SimpleExponentialBackoff(1.second, 1000.seconds, 1.5d)
   }
 
-  // Not final so methods can be overridden in unit tests.
   private[statuspolling] case class JesStatusPollQuery(requester: ActorRef, run: Run, failedAttempts: Int = 0, backoff: Backoff = JesApiQuery.backoff) extends JesApiQuery {
     override val genomicsInterface = run.genomicsInterface
     override lazy val httpRequest = run.getOperationCommand.buildHttpRequest()
     override def withFailedAttempt = this.copy(failedAttempts = failedAttempts + 1, backoff = backoff.next)
   }
 
-  // Not final so methods can be overridden in unit tests.
   private[statuspolling] case class JesRunCreationQuery(requester: ActorRef, genomicsInterface: Genomics, rpr: RunPipelineRequest, failedAttempts: Int = 0, backoff: Backoff = JesApiQuery.backoff) extends JesApiQuery {
     override def withFailedAttempt = this.copy(failedAttempts = failedAttempts + 1, backoff = backoff.next)
     override lazy val httpRequest = genomicsInterface.pipelines().run(rpr).buildHttpRequest()
